@@ -27,16 +27,17 @@ describe "OracleEnhancedAdapter schema definition" do
     end
   end
 
-  describe "table and sequence creation with non-default primary key" do
-
+  shared_context "keyboards and id_keyboards" do
     before(:all) do
       @conn = ActiveRecord::Base.connection
       schema_define do
         create_table :keyboards, force: true, id: false do |t|
+          t.timestamps
           t.primary_key :key_number
           t.string      :name
         end
         create_table :id_keyboards, force: true do |t|
+          t.timestamps
           t.string      :name
         end
       end
@@ -56,6 +57,29 @@ describe "OracleEnhancedAdapter schema definition" do
       Object.send(:remove_const, "IdKeyboard")
       ActiveRecord::Base.clear_cache!
     end
+  end
+
+  describe "after save leaks cursors" do
+    before(:all) do
+      class ::Keyboard < ActiveRecord::Base
+        after_save :modify_updated_at
+
+        def modify_updated_at
+          update_column(:updated_at, updated_at + 1.hours)
+        end
+      end
+    end
+    include_context "keyboards and id_keyboards"
+
+    it "make it leak" do
+      1000.times { Keyboard.create! }
+      puts "all done"
+      $stdin.gets
+    end
+  end
+
+  describe "table and sequence creation with non-default primary key" do
+    include_context "keyboards and id_keyboards"
 
     it "should create sequence for non-default primary key" do
       expect(ActiveRecord::Base.connection.next_sequence_value(Keyboard.sequence_name)).not_to be_nil
