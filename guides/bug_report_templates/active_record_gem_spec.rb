@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+Dir["lib/*.jar"].each do |jar|
+  require File.expand_path jar
+end
+
+contextXmlFile = File.open("context.xml")
+
+tomcatJNDI = Java::Hthurow.tomcatjndi.TomcatJNDI.new
+tomcatJNDI.processContextXml(contextXmlFile);
+tomcatJNDI.start
+
+
 require "bundler/inline"
 
 gemfile(true) do
@@ -7,8 +18,8 @@ gemfile(true) do
 
   git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-  gem "rails", github: "rails/rails", branch: "main"
-  gem "activerecord-oracle_enhanced-adapter",  github: "rsim/oracle-enhanced", branch: "master"
+  gem "rails", github: "rails/rails", branch: "6-1-stable"
+  gem "activerecord-oracle_enhanced-adapter",  github: "rsim/oracle-enhanced", branch: "release61"
   gem "rspec"
 
   platforms :ruby do
@@ -21,6 +32,10 @@ require "rspec"
 require "logger"
 require "active_record/connection_adapters/oracle_enhanced_adapter"
 
+# java.lang.System.setProperty("java.naming.factory.initial", "JFish")
+
+
+
 # Set Oracle enhanced adapter specific connection parameters
 DATABASE_NAME = ENV["DATABASE_NAME"] || "orcl"
 DATABASE_HOST = ENV["DATABASE_HOST"]
@@ -31,11 +46,11 @@ DATABASE_SYS_PASSWORD = ENV["DATABASE_SYS_PASSWORD"] || "admin"
 
 CONNECTION_PARAMS = {
   adapter: "oracle_enhanced",
-  database: DATABASE_NAME,
-  host: DATABASE_HOST,
-  port: DATABASE_PORT,
-  username: DATABASE_USER,
-  password: DATABASE_PASSWORD
+  jndi: "java:comp/env/pool/a",
+  # driver: oracle.jdbc.driver.T4CConnection
+  pool: 20,
+  checkout_timeout: 10,
+  statement_limit: 250
 }
 
 ActiveRecord::Base.logger = Logger.new(STDOUT)
